@@ -13,6 +13,23 @@ pipeline {
             }
         }
 
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'Buneary-Jenk']]) {
+  sh '''
+    echo "Caller identity:"
+    aws sts get-caller-identity --output json
+
+    echo "Bucket location:"
+    aws s3api get-bucket-location --bucket terraform-state-aaronmcd || true
+
+    echo "Try head-object (will show error code if forbidden):"
+    aws s3api head-object --bucket terraform-state-aaronmcd --key jenkins-test-031726.tfstate || true
+
+    echo "List bucket (may be restricted):"
+    aws s3 ls s3://terraform-state-aaronmcd/ || true
+  '''
+}
+
+
         stage('Terraform Init') {
             steps {
                 withCredentials([[
