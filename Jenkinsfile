@@ -1,87 +1,70 @@
 pipeline {
-  agent any
-  environment {
-    AWS_DEFAULT_REGION = 'us-east-1'
-    TF_IN_AUTOMATION   = 'true'
-    TERRAFORM_DIR      = 'terraform' // change this to your .tf location
-  }
+    agent any
 
-  stages {
-    stage('Checkout') {
-      steps { checkout scm }
+    environment {
+        AWS_DEFAULT_REGION = 'us-east-1'
+        TF_IN_AUTOMATION   = 'true'
     }
 
-    stage('Terraform Init') {
-      steps {
-        dir(env.TERRAFORM_DIR) {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'Buneary-Jenk'
-          ]]) {
-            sh '''
-              echo "Running terraform init in $(pwd)"
-              terraform init -input=false
-              terraform validate || true
-            '''
-          }
-        }
-      }
-    }
-
-    stage('Terraform Plan') {
-      steps {
-        dir(env.TERRAFORM_DIR) {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'Buneary-Jenk'
-          ]]) {
-            sh '''
-              echo "Checking AWS env presence: ${AWS_ACCESS_KEY_ID:+present}"
-              terraform plan -input=false -out=tfplan
-            '''
-          }
-        }
-      }
-    }
-
-    stage('Terraform Apply') {
-      when { expression { return fileExists("${env.TERRAFORM_DIR}/tfplan") } }
-      steps {
-        dir(env.TERRAFORM_DIR) {
-          withCredentials([[
-            $class: 'AmazonWebServicesCredentialsBinding',
-            credentialsId: 'Buneary-Jenk'
-          ]]) {
-            sh 'terraform apply -input=false -auto-approve tfplan'
-          }
-        }
-      }
-    }
-
-    stage('Optional Destroy') {
-      steps {
-        script {
-          def destroyChoice = input(
-            message: 'Do you want to run terraform destroy?',
-            ok: 'Submit',
-            parameters: [
-              choice(name: 'DESTROY', choices: ['no','yes'], description: 'Select yes to destroy resources')
-            ]
-          )
-          if (destroyChoice == 'yes') {
-            dir(env.TERRAFORM_DIR) {
-              withCredentials([[
-                $class: 'AmazonWebServicesCredentialsBinding',
-                credentialsId: 'Buneary-Jenk'
-              ]]) {
-                sh 'terraform destroy -input=false -auto-approve'
-              }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
             }
-          } else {
-            echo "Skipping destroy"
-          }
         }
-      }
+
+        stage('Terraform Init') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'Buneary-Jenk'
+                ]]) {
+                    sh 'terraform init'
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'Buneary-Jenk'
+                ]]) {
+                    sh '''
+                        terraform plan -out=tfplan
+                        terraform apply -auto-approve tfplan
+                    '''
+                }
+            }
+        }
+
+        stage('Optional Destroy') {
+            steps {
+                script {
+                    def destroyChoice = input(
+                        message: 'Do you want to run terraform destroy?',
+                        ok: 'Submit',
+                        parameters: [
+                            choice(
+                                name: 'DESTROY',
+                                choices: ['no', 'yes'],
+                                description: 'Select yes to destroy resources'
+                            )
+                        ]
+                    )
+
+                    if (destroyChoice == 'yes') {
+                        withCredentials([[
+                            $class: 'AmazonWebServicesCredentialsBinding',
+                            credentialsId: 'Buneary-Jenk'
+                        ]]) {
+                            sh 'terraform destroy -auto-approve'
+                        }
+                    } else {
+                        echo "Skipping destroy"
+                    }
+                }
+            }
+        }
     }
-  }
 }
