@@ -28,7 +28,7 @@ pipeline {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-iam-user-creds'
+                    credentialsId: 'Buneary-Jenk'
                 ]]) {
                     sh '''
                         terraform plan -out=tfplan
@@ -56,7 +56,7 @@ pipeline {
                     if (destroyChoice == 'yes') {
                         withCredentials([[
                             $class: 'AmazonWebServicesCredentialsBinding',
-                            credentialsId: 'aws-iam-user-creds'
+                            credentialsId: 'Buneary-Jenk'
                         ]]) {
                             sh 'terraform destroy -auto-approve'
                         }
